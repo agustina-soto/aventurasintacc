@@ -1,2 +1,2 @@
-﻿# proyecto celiaquia
+﻿# Proyecto celiaquia
  repo aux
