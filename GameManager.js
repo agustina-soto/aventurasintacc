@@ -17,49 +17,122 @@ export class GameManager {
       daily: { speed: 1, foodRatio: [0.6, 0.3, 0.1] },
       birthday: { speed: 1.3, foodRatio: [0.4, 0.3, 0.3] },
       travel: { speed: 1.6, foodRatio: [0.5, 0.2, 0.3] }
-    };
+    }
+    this.isPaused = false // Para controlar el estado de pausa del juego; es para nosotras, no para el juego
+    this.pauseStartTime = 0; // Para guardar el momento en que se pausa el juego
+
+    // Agregar listener para redimensionamiento
+    window.addEventListener('resize', () => {
+      this.handleResize();
+    });
+  }
+
+  handleResize() {
+    const container = document.getElementById('game-container');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // Actualizar dimensiones del canvas
+    this.canvas.canvas.width = width;
+    this.canvas.canvas.height = height;
+
+    // Redibujar el estado actual
+    this.draw();
   }
 
   get activeFoods() {
     return this.allFoodItems.filter(food => food.isActive);
   }
+  
+  updateButtons(startWebCam, stopWebCam, startGame, endGame, pauseGame, resumeGame) {
+    document.getElementById('b-start-webcam').disabled = startWebCam;
+    document.getElementById('b-stop-webcam').disabled = stopWebCam;
+    document.getElementById('b-start-game').disabled = startGame;
+    document.getElementById('b-pause-game').disabled = pauseGame;
+    document.getElementById('b-resume-game').disabled = resumeGame;
+    document.getElementById('b-end-game').disabled = endGame;
+  }
 
   startGame() {
     this.gameStarted = true;
+    this.isPaused = false;
     this.gameStartTime = Date.now();
+    this.pauseStartTime = 0;
     this.allFoodItems = [];
     this.players.forEach(p => p.reset());
-    document.getElementById('b-start-game').disabled = true;
+
+    // Actualiza estados de los botones
+    this.updateButtons(true, false, true, false, false, true);
   }
 
   endGame() {
     this.gameStarted = false;
+    this.isPaused = false;
+    this.hidePauseMessage();
+
+    // console.log(typeof camera);
+    if (typeof this.camera !== 'undefined') {
+      this.camera.stop();
+    }
+
     this.showResults();
-    document.getElementById('b-start-game').disabled = false;
+
+    // Actualiza estados de los botones
+    this.updateButtons(false, true, false, true, true, true);
+
+    // guardarResultadosEnFirebase(); // -- a implementar después
   }
 
-  update(currentTime, poses) {
-    if (!this.gameStarted) return;
+  // Pausa hasta que se toca el boton de reanudar o salir del juego
+  pauseGame() {
+    this.isPaused = true;
+    this.pauseStartTime = Date.now(); // Guarda el momento en que se pausa
+    this.updateButtons(true, false, false, true, true, false);
+    this.showPauseMessage(); // Muestra mensaje de pausa
+  }
 
-    // Verificar fin del juego
+  resumeGame() {
+    if (!this.isPaused) return; // Si no está pausado, no hacer nada -- no deberia pasar nunca pero deberia probarlo bien
+
+    // Calcula tiempo de pausa
+    const pauseDuration = Date.now() - this.pauseStartTime;
+
+    // Ajustar los tiempos de los alimentos
+    this.allFoodItems.forEach(food => {
+      food.spawnTime += pauseDuration;
+    });
+
+    // Ajustar tiempos del juego
+    this.gameStartTime += pauseDuration;
+    this.lastFoodSpawn += pauseDuration;
+
+    this.isPaused = false;
+    this.hidePauseMessage();
+    this.updateButtons(false, false, false, true, false, true);
+  }
+
+  update(currentTime, hands) {
+    if (!this.gameStarted || this.isPaused) return;
+
+    // Verifica fin del juego
     if (currentTime - this.gameStartTime > this.gameDuration) {
       this.endGame();
       return;
     }
 
-    // Generar nuevos alimentos
+    // Genera nuevos alimentos
     if (currentTime - this.lastFoodSpawn > this.foodSpawnInterval) {
       this.spawnFood();
       this.lastFoodSpawn = currentTime;
     }
 
-    // Actualizar alimentos y filtrar inactivos
+    // Actualiza alimentos y filtra inactivos
     this.allFoodItems.forEach(food => food.update(currentTime));
     this.allFoodItems = this.allFoodItems.filter(food => food.isActive);
 
-    // Detectar colisiones si hay jugadores
-    if (poses && poses.length >= 2) {
-      this.detectCollisions(poses);
+    // Detecta colisiones si hay 4 manos (2 jugadores) -- si no hay 4 manos, no detecta colisiones (esto no esta ok pero tendríamos que definir qué hacer, si un jugador esconde una mano no puede frenarse el juego)
+    if (hands && hands.length >= 4) {
+      this.detectCollisions(hands);
     }
   }
 
@@ -77,64 +150,57 @@ export class GameManager {
 
     const imageName = this.getRandomFoodImage(type);
     const imagePath = `foodImages/${imageName}`;
-    console.log('Cargando imagen:', imagePath); // Para debug
     this.allFoodItems.push(new FoodItem(x, y, type, imagePath));
   }
 
   getRandomFoodImage(type) {
     const foodImages = {
-      1: ['manzana.jpg', 'banana.jpg'],
-      2: ['chocolate.jpg'],
-      3: ['pan.jpg', 'pizza.jpg']
+      1: ['apple.png', 'banana.png', 'avocado.png', 'carrot.png', 'lettuce.png', 'nut.png', 'pepper.png', 'strawberry.png'],
+      2: ['drink.png', 'friepotatoes.png'],
+      3: ['bread.png', 'pizza.png', 'cookie.png', 'donut.png']
     };
 
     const images = foodImages[type];
     const randomIndex = Math.floor(Math.random() * images.length);
 
-    // Ruta para mi estructura:
-    return `/food${type}_${images[randomIndex]}`;
+    return `food${type}_${images[randomIndex]}`;
   }
 
-  detectCollisions(poses) {
-    // Jugador 1 (pose 0)
-    const player1Hands = this.getHandPositions(poses[0]);
-    player1Hands.forEach(hand => {
-      this.activeFoods.forEach(food => {
-        if (food.checkCollision(hand.x, hand.y)) {
-          food.isActive = false;
-          this.players[0].collectFood(food.type);
-          this.createCollectionEffect(food);
-        }
-      });
-    });
-
-    // Jugador 2 (pose 1)
-    const player2Hands = this.getHandPositions(poses[1]);
-    player2Hands.forEach(hand => {
-      this.activeFoods.forEach(food => {
-        if (food.checkCollision(hand.x, hand.y)) {
-          food.isActive = false;
-          this.players[1].collectFood(food.type);
-          this.createCollectionEffect(food);
-        }
-      });
+  // Método auxiliar para procesar las manos de un jugador
+  processPlayerHands(playerHands, playerIndex) {
+    playerHands.forEach(hand => {
+      if (hand.keypoints && hand.keypoints.length > 0 && hand.score > 0.7) { // Verificación de keypoints y solo considera detecciones con alta confianza
+        const handX = hand.keypoints[0].x;
+        const handY = hand.keypoints[0].y;
+        this.activeFoods.forEach(food => {
+          console.log("comida activa");
+          if (food.checkCollision(handX, handY)) {
+            console.log("Colisión detectada");
+            food.isActive = false;
+            this.players[playerIndex].collectFood(food.type);
+            this.createCollectionEffect(food);
+          }
+        });
+      }
     });
   }
 
-  getHandPositions(pose) {
-    const hands = [];
-    if (pose.keypoints) {
-      const leftWrist = pose.keypoints.find(kp => kp.name === 'left_wrist');
-      const rightWrist = pose.keypoints.find(kp => kp.name === 'right_wrist');
+  detectCollisions(hands) {
+    if (!hands || hands.length === 0) return;
 
-      if (leftWrist && leftWrist.score > 0.3) {
-        hands.push({ x: leftWrist.x, y: leftWrist.y });
-      }
-      if (rightWrist && rightWrist.score > 0.3) {
-        hands.push({ x: rightWrist.x, y: rightWrist.y });
-      }
-    }
-    return hands;
+    console.log("Detectando colisiones con cant manos:", hands.length);
+
+    // Procesa las manos del jugador 1 (primeras dos manos detectadas)
+    const player1Hands = hands.slice(0, 2);
+    this.processPlayerHands(player1Hands, 0);
+
+    console.log("Manos del jugador 1 procesadas:", player1Hands.length);
+
+    // Procesa las manos del jugador 2 (siguientes dos manos detectadas)
+    const player2Hands = hands.slice(2, 4);
+    this.processPlayerHands(player2Hands, 1);
+
+    console.log("Manos del jugador 2 procesadas:", player2Hands.length);
   }
 
   createCollectionEffect(food) {
@@ -173,13 +239,14 @@ export class GameManager {
     this.ctx.lineWidth = 3;
 
     // Jugador 1 (izquierda)
-    this.ctx.fillText(`Jugador 1: ${this.players[0].score} pts`, 20, 30);
-    this.ctx.strokeText(`Jugador 1: ${this.players[0].score} pts`, 20, 30);
+    this.ctx.fillText(`Jugador 1: ${this.players[0].score} pts | ❤️ ${this.players[0].vitalEnergy}%`, 20, 30);
+    this.ctx.strokeText(`Jugador 1: ${this.players[0].score} pts | ❤️ ${this.players[0].vitalEnergy}%`, 20, 30);
 
     // Jugador 2 (derecha)
-    const textWidth = this.ctx.measureText(`Jugador 2: ${this.players[1].score} pts`).width;
-    this.ctx.fillText(`Jugador 2: ${this.players[1].score} pts`, this.canvas.canvas.width - textWidth - 20, 30);
-    this.ctx.strokeText(`Jugador 2: ${this.players[1].score} pts`, this.canvas.canvas.width - textWidth - 20, 30);
+    const p2Text = `Jugador 2: ${this.players[1].score} pts | ❤️ ${this.players[1].vitalEnergy}%`;
+    const textWidth = this.ctx.measureText(p2Text).width;
+    this.ctx.fillText(p2Text, this.canvas.canvas.width - textWidth - 20, 30);
+    this.ctx.strokeText(p2Text, this.canvas.canvas.width - textWidth - 20, 30);
 
     // Tiempo restante
     const remaining = Math.ceil((this.gameDuration - (Date.now() - this.gameStartTime)) / 1000);
@@ -192,59 +259,101 @@ export class GameManager {
   showResults() {
     const resultsDiv = document.createElement('div');
     resultsDiv.className = 'game-results';
-    resultsDiv.innerHTML = `
-      <h1>¡Juego Terminado!</h1>
-      
-      <div class="player-result">
-        <h2>Jugador 1</h2>
-        <p>Puntuación: ${this.players[0].score}</p>
-        <div class="food-stats">
-          <div class="food-stat">
-            <span class="legend healthy"></span>
-            <span>Saludables: ${this.players[0].foodsCollected.healthy}</span>
-          </div>
-          <div class="food-stat">
-            <span class="legend unhealthy"></span>
-            <span>No saludables: ${this.players[0].foodsCollected.unhealthy}</span>
-          </div>
-          <div class="food-stat">
-            <span class="legend gluten"></span>
-            <span>Con gluten: ${this.players[0].foodsCollected.gluten}</span>
-          </div>
-        </div>
-      </div>
-      
-      <div class="player-result">
-        <h2>Jugador 2</h2>
-        <p>Puntuación: ${this.players[1].score}</p>
-        <div class="food-stats">
-          <div class="food-stat">
-            <span class="legend healthy"></span>
-            <span>Saludables: ${this.players[1].foodsCollected.healthy}</span>
-          </div>
-          <div class="food-stat">
-            <span class="legend unhealthy"></span>
-            <span>No saludables: ${this.players[1].foodsCollected.unhealthy}</span>
-          </div>
-          <div class="food-stat">
-            <span class="legend gluten"></span>
-            <span>Con gluten: ${this.players[1].foodsCollected.gluten}</span>
-          </div>
-        </div>
-      </div>
-      
-      <div class="game-message">
-        <p>La celiaquía es una condición seria donde incluso pequeñas cantidades de gluten pueden causar daño.</p>
-        <p>¡Siempre verifica los alimentos y busca el sello SIN TACC!</p>
-      </div>
-      
-      <button id="b-close-results">Cerrar</button>
-    `;
+    const title = document.createElement('h1');
+    title.textContent = '¡Juego Terminado!';
+
+    // Contenedor para los jugadores
+    const playersContainer = document.createElement('div');
+    playersContainer.className = 'players-results-container';
+
+    // Jugador 1
+    const player1Div = this.createPlayerResult('Jugador 1', 0);
+
+    // Jugador 2
+    const player2Div = this.createPlayerResult('Jugador 2', 1);
+
+    // Agregar jugadores al contenedor
+    playersContainer.append(player1Div, player2Div);
+
+    // Mensaje del juego
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'game-message';
+    const message1 = document.createElement('p');
+    message1.textContent = 'La celiaquía es una condición seria donde incluso pequeñas cantidades de gluten pueden causar daño.';
+    const message2 = document.createElement('p');
+    message2.textContent = '¡Siempre verifica los alimentos y busca el sello SIN TACC!';
+    messageDiv.append(message1, message2);
+
+    // Ensamblar todo para agregarlo al game conteiner
+    resultsDiv.append(
+      title,
+      playersContainer, // Usamos el contenedor en lugar de los divs individuales porque era re ilegible :)
+      messageDiv,
+    );
 
     document.getElementById('game-container').appendChild(resultsDiv);
+  }
 
-    document.getElementById('b-close-results').addEventListener('click', () => {
-      resultsDiv.remove();
-    });
+  // Método auxiliar para crear la sección de cada jugador
+  createPlayerResult(playerName, playerIndex) {
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'player-result';
+
+    const title = document.createElement('h2');
+    title.textContent = playerName;
+
+    const score = document.createElement('p');
+    score.textContent = `Puntuación: ${this.players[playerIndex].score}`;
+
+    const energy = document.createElement('p');
+    energy.textContent = `Energía Vital: ${this.players[playerIndex].vitalEnergy}%`;
+
+    const foodsDiv = document.createElement('div');
+    foodsDiv.className = 'food-stats';
+
+    // Estadísticas de comida
+    const healthyDiv = this.createFoodStat('healthy', 'Saludables', this.players[playerIndex].foodsCollected.healthy);
+    const unhealthyDiv = this.createFoodStat('unhealthy', 'No saludables', this.players[playerIndex].foodsCollected.unhealthy);
+    const glutenDiv = this.createFoodStat('gluten', 'Con gluten', this.players[playerIndex].foodsCollected.gluten);
+
+    foodsDiv.append(healthyDiv, unhealthyDiv, glutenDiv);
+    playerDiv.append(title, score, energy, foodsDiv);
+
+    return playerDiv;
+  }
+
+  // Método auxiliar para crear cada estadística de comida
+  createFoodStat(className, labelText, value) {
+    const statDiv = document.createElement('div');
+    statDiv.className = 'food-stat';
+
+    const legend = document.createElement('span');
+    legend.className = `legend ${className}`;
+
+    const label = document.createElement('span');
+    label.textContent = `${labelText}: ${value}`;
+
+    statDiv.append(legend, label);
+    return statDiv;
+  }
+
+  showPauseMessage() {
+    // Crea o actualiza el mensaje de pausa
+    let pauseMsg = document.getElementById('pause-message');
+    if (!pauseMsg) {
+      pauseMsg = document.createElement('div');
+      pauseMsg.id = 'pause-message';
+      pauseMsg.className = 'game-pause-message';
+      pauseMsg.innerHTML = '<h1>JUEGO EN PAUSA</h1>';
+      document.getElementById('game-container').appendChild(pauseMsg);
+    }
+    pauseMsg.style.display = 'block';
+  }
+
+  hidePauseMessage() {
+    const pauseMsg = document.getElementById('pause-message');
+    if (pauseMsg) {
+      pauseMsg.style.display = 'none';
+    }
   }
 }
