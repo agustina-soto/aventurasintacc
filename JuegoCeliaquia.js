@@ -29,42 +29,41 @@ rec.loadHandNet(handPoseDetection.SupportedModels.MediaPipeHands, {
 camera.getVideo().addEventListener('loadeddata', () => runInference(canvas, camera));
 
 document.getElementById('b-start-webcam').addEventListener('click', () => {
-  camera.start(canvas);
-  // Deshabilita botones de juego hasta que empiece
-  document.getElementById('b-start-game').disabled = false;
-  document.getElementById('b-pause-game').disabled = true;
-  document.getElementById('b-resume-game').disabled = true;
-});
-
-document.getElementById('b-stop-webcam').addEventListener('click', () => {
-  camera.stop();
-  document.getElementById('b-start-game').disabled = true;
+    camera.start(canvas);
+    // Limpia cualquier resultado previo
+    const existingResults = document.querySelector('.game-results');
+    if (existingResults) {
+        existingResults.remove();
+    }
+    // Oculta el botón de iniciar cámara y muestra el de comenzar juego
+    document.getElementById('initial-controls').style.display = 'none';
+    document.getElementById('pre-game-controls').style.display = 'flex';
+    document.getElementById('game-controls').style.display = 'none';
 });
 
 document.getElementById('b-start-game').addEventListener('click', () => {
-  window.gameManager.startGame();
-});
-
-document.getElementById('b-pause-game').addEventListener('click', () => {
-  window.gameManager.pauseGame();
-});
-
-document.getElementById('b-resume-game').addEventListener('click', () => {
-  window.gameManager.resumeGame();
+    window.gameManager.startGame();
+    // Oculta el botón de comenzar juego y muestra los controles del juego
+    document.getElementById('pre-game-controls').style.display = 'none';
+    document.getElementById('game-controls').style.display = 'flex';
 });
 
 document.getElementById('b-end-game').addEventListener('click', () => {
-  window.gameManager.endGame();
+    window.gameManager.endGame();
+    // Al terminar el juego, vuelve al estado inicial
+    document.getElementById('game-controls').style.display = 'none';
+    document.getElementById('initial-controls').style.display = 'flex';
+    // Detiene la cámara
+    camera.stop();
 });
 
 // Inicialización de los botones al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('b-pause-game').disabled = true;
-  document.getElementById('b-resume-game').disabled = true;
-  document.getElementById('b-start-game').disabled = true;
-  document.getElementById('b-end-game').disabled = true;
+    // Asegura que solo el botón inicial esté visible
+    document.getElementById('initial-controls').style.display = 'flex';
+    document.getElementById('pre-game-controls').style.display = 'none';
+    document.getElementById('game-controls').style.display = 'none';
 });
-
 
 // Bucle principal del juego
 async function runInference(canvas, camera) {
@@ -72,20 +71,24 @@ async function runInference(canvas, camera) {
   try {
     // Detectar tanto poses como manos
     const hands = await rec.estimateHands(image, {
-      flipHorizontal: false,
+      // flipHorizontal: true,
       staticImageMode: false,
     });
 
-    const poses = await rec.estimatePoses(image);
+    const poses = await rec.estimatePoses(image, {
+      // flipHorizontal: true
+    });
     canvas.drawCameraFrame(camera);
 
-    // Actualiza y dibuja el juego
-    window.gameManager.update(Date.now(), hands);
-    window.gameManager.draw();
+    // Actualiza y dibuja el juego sólo cuando no está mostrando resultados de etapa
+    if (window.gameManager && !window.gameManager.gameEnded && !document.querySelector('.game-results')) {
+      window.gameManager.update(Date.now(), hands);
+      window.gameManager.draw();
+    }
 
     // Dibuja todas las detecciones
     canvas.drawResultsPoses(poses);
-    canvas.drawResultsHands(hands);
+    canvas.renderHands(hands);
     updateFPS();
   } catch (error) {
     console.error("Error en la detección:", error);
