@@ -2,7 +2,7 @@
 
 **Un proyecto del III-LIDI: Aprendizaje de la salud y juegos serios**
 
-🔗 **Acceso al juego:** https://ceciliamarfia.github.io/proyecto-celiaquia/
+🔗 **Acceso al juego:** https://agustina-soto.github.io/aventurasintacc/
 
 ---
 
