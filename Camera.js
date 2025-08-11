@@ -20,21 +20,24 @@ export class Camera {
   }
 
   updateDimensions(sourceWidth, sourceHeight) {
-    // Guarda dimensiones del contenedor
-    const container = document.getElementById('game-container');
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
+    const container = document.getElementById('video-wrapper');
+    container.style.width = sourceWidth + 'px';
+    container.style.height = sourceHeight + 'px';
 
-    // Usa dimensiones del contenedor para asignarle al video y al canvas asi no hay que hacer conversiones
-    this.video.width = containerWidth;
-    this.video.height = containerHeight;
+    this.video.width = sourceWidth;
+    this.video.height = sourceHeight;
 
     const canvas = document.querySelector('canvas');
-    canvas.width = containerWidth;
-    canvas.height = containerHeight;
+    if (canvas) {
+      canvas.width = sourceWidth;
+      canvas.height = sourceHeight;
+      canvas.style.width = sourceWidth + 'px';
+      canvas.style.height = sourceHeight + 'px';
+    }
   }
 
-  start(canvas) {
+
+  start(canvasInstance) {
     var self = this;
     if (navigator.getUserMedia) {
       navigator.getUserMedia(
@@ -50,13 +53,15 @@ export class Camera {
 
           const { width, height } = self.webcamStream.getTracks()[0].getSettings();
           self.updateDimensions(width, height);
+
+          // El contenedor se va a adaptar al tamaño del video
+          self.video.addEventListener('loadedmetadata', () => {
+            self.updateDimensions(self.video.videoWidth, self.video.videoHeight);
+          });
         },
         // errorCallback
         function (err) {
-          console.log("The following error occured: " + err);
         });
-    } else {
-      console.log("getUserMedia not supported");
     }
   }
 
