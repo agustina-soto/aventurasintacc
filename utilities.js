@@ -8,13 +8,13 @@ const DEFAULT_LINE_WIDTH = 2;
 const DEFAULT_RADIUS = 4;
 
 const STATE = {
-  model: "",
-  modelConfig: {},
+  model: '',
+  modelConfig: {}
 };
 
 const MOVENET_CONFIG = {
   scoreThreshold: 0.3,
-  enableTracking: false,
+  enableTracking: false
 };
 
 STATE.modelConfig = { ...MOVENET_CONFIG };
@@ -43,36 +43,18 @@ const params = { STATE, DEFAULT_LINE_WIDTH, DEFAULT_RADIUS };
 // #3cb44b - Chateau Green
 // #a9a9a9 - Silver Chalice
 const COLOR_PALETTE = [
-  "#ffffff",
-  "#800000",
-  "#469990",
-  "#e6194b",
-  "#42d4f4",
-  "#fabed4",
-  "#aaffc3",
-  "#9a6324",
-  "#000075",
-  "#f58231",
-  "#4363d8",
-  "#ffd8b1",
-  "#dcbeff",
-  "#808000",
-  "#ffe119",
-  "#911eb4",
-  "#bfef45",
-  "#f032e6",
-  "#3cb44b",
-  "#a9a9a9",
+  '#ffffff', '#800000', '#469990', '#e6194b', '#42d4f4', '#fabed4', '#aaffc3',
+  '#9a6324', '#000075', '#f58231', '#4363d8', '#ffd8b1', '#dcbeff', '#808000',
+  '#ffe119', '#911eb4', '#bfef45', '#f032e6', '#3cb44b', '#a9a9a9'
 ];
-
 
 /**
  * Draw the keypoints and skeleton on the video.
  * @param poses A list of poses to render.
  */
-export function drawResultsPoses(ctx, poses, playerIndex) {
+export function drawResultsPoses(ctx, poses,playerIndex) {
   for (const pose of poses) {
-    drawResultPoses(ctx, pose, playerIndex);
+    drawResultPoses(ctx, pose,playerIndex);
   }
 }
 
@@ -102,12 +84,12 @@ function drawKeypointsPoses(ctx, keypoints) {
     drawKeypointPoses(ctx, keypoints[i]);
   }
 
-  ctx.fillStyle = "Green";
+  ctx.fillStyle = 'Green';
   for (const i of keypointInd.left) {
     drawKeypointPoses(ctx, keypoints[i]);
   }
 
-  ctx.fillStyle = "Orange";
+  ctx.fillStyle = 'Orange';
   for (const i of keypointInd.right) {
     drawKeypointPoses(ctx, keypoints[i]);
   }
@@ -132,15 +114,16 @@ function drawKeypointPoses(ctx, keypoint) {
  */
 function drawSkeletonPoses(ctx, keypoints, poseId) {
   // Each poseId is mapped to a color in the color palette.
-  const color =
-    params.STATE.modelConfig.enableTracking && poseId != null
-      ? COLOR_PALETTE[poseId % 20]
-      : "White";
+  const color = params.STATE.modelConfig.enableTracking && poseId != null ?
+    COLOR_PALETTE[poseId % 20] :
+    'White';
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
   ctx.lineWidth = params.DEFAULT_LINE_WIDTH;
 
-  poseDetection.util.getAdjacentPairs(params.STATE.model).forEach(([i, j]) => {
+  poseDetection.util.getAdjacentPairs(params.STATE.model).forEach(([
+    i, j
+  ]) => {
     const kp1 = keypoints[i];
     const kp2 = keypoints[j];
 
@@ -238,20 +221,20 @@ function drawKeypointsHands(ctx, keypoints, handColor) {
   const fingers = Object.keys(fingerLookupIndices);
   for (let i = 0; i < fingers.length; i++) {
     const finger = fingers[i];
-    const points = fingerLookupIndices[finger].map((idx) => keypoints[idx]);
+    const points = fingerLookupIndices[finger].map(idx => keypoints[idx]);
     drawPathHands(ctx, points, false);
   }
 
   ctx.strokeStyle = handColor;
   for (let i = 0; i < fingers.length; i++) {
     const finger = fingers[i];
-    const points = fingerLookupIndices[finger].map((idx) => keypoints[idx]);
+    const points = fingerLookupIndices[finger].map(idx => keypoints[idx]);
     drawPathHands(ctx, points, false);
   }
 
   // Dibuja puntos de articulaciones
   ctx.fillStyle = handColor;
-  ctx.strokeStyle = "#ffffff";
+  ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 3;
 
   for (let i = 0; i < keypointsArray.length; i++) {
@@ -262,7 +245,7 @@ function drawKeypointsHands(ctx, keypoints, handColor) {
     drawPointHands(ctx, x, y, 8);
 
     // Efecto de brillo
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = '#ffffff';
     drawPointHands(ctx, x, y, 4);
 
     ctx.fillStyle = handColor; // Vuelve al color de la mano

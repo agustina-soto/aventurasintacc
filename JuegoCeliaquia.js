@@ -1,8 +1,8 @@
-import { Camera } from "./Camera.js";
-import { Canvas } from "./Canvas.js";
-import * as rec from "./Recognition.js";
+import { Camera } from './Camera.js';
+import { Canvas } from './Canvas.js';
+import * as rec from './Recognition.js';
 import { updateFPS } from "./fpsModule.js";
-import { GameManager } from "./GameManager.js";
+import { GameManager } from './GameManager.js';
 
 // Configuración principal
 
@@ -12,12 +12,12 @@ const canvas = new Canvas();
 // Colores de referencia para los símbolos de los jugadores - CHEQUEAR si quieren estos dos colores; sino cambiar los valores rgb y googlear cuales irian
 export const PLAYER_SYMBOLS = [
   { name: "rojo", rgb: [200, 30, 30] }, // Jugador 1: rojo
-  { name: "azul", rgb: [30, 30, 200] }, // Jugador 2: azul
+  { name: "azul", rgb: [30, 30, 200] }  // Jugador 2: azul
 ];
 
 /* Distancia mínima para considerar un color como válido - si no hay coincidencia, no se asigna la mano a un jugador
-  - Bajar el umbral si queremos que sea mas estricto (se asignan menos manos) 
-  - Subir el umbral si queremos que acepte colores mas parecidos (se asignan menos manos) */
+  - Bajar el umbral si queremos que se amas estricto (se asignan menos manos) 
+  - Subir el umbral si queremos que acepte colores mas parecidos (se asignan mas manos) */
 const COLOR_THRESHOLD = 120;
 
 window.gameManager = new GameManager(canvas); // Variable global para acceder al GameManager
@@ -30,70 +30,65 @@ rec.loadPoseNet(poseDetection.SupportedModels.MoveNet, {
 });
 
 rec.loadHandNet(handPoseDetection.SupportedModels.MediaPipeHands, {
-  runtime: "tfjs",
-  modelType: "lite",
+  runtime: 'tfjs',
+  modelType: 'lite',
   maxHands: 4,
   detectorConfig: {
-    runtime: "tfjs",
-  },
+    runtime: 'tfjs',
+  }
 });
 
 // Event Listeners
-camera
-  .getVideo()
-  .addEventListener("loadeddata", () => runInference(canvas, camera));
+camera.getVideo().addEventListener('loadeddata', () => runInference(canvas, camera));
 
-document.getElementById("b-start-webcam").addEventListener("click", () => {
+document.getElementById('b-start-webcam').addEventListener('click', () => {
   camera.start(canvas);
   // Limpia cualquier resultado previo
-  const existingResults = document.querySelector(".stage-results");
+  const existingResults = document.querySelector('.stage-results');
   if (existingResults) {
     existingResults.remove();
   }
   // Oculta el botón de iniciar cámara y muestra el de comenzar juego
-  document.getElementById("initial-controls").style.display = "none";
-  document.getElementById("pre-game-controls").style.display = "flex";
-  document.getElementById("game-controls").style.display = "none";
+  document.getElementById('initial-controls').style.display = 'none';
+  document.getElementById('pre-game-controls').style.display = 'flex';
+  document.getElementById('game-controls').style.display = 'none';
 
   // Mostrar mensaje de prueba - que deberia ser el juego de prueba!!
-  const testMsg = document.getElementById("test-stage-message");
-  testMsg.style.display = "block";
-  // El mensaje se queda fijo hasta que se presione "Comenzar Juego"
+  const testMsg = document.getElementById('test-stage-message');
+  testMsg.style.display = 'block';
+  // El mensaje se queda fijo hasta que se presione "Comenzar Juego" 
 });
 
-document.getElementById("b-start-game").addEventListener("click", () => {
+document.getElementById('b-start-game').addEventListener('click', () => {
   window.gameManager.startGame();
   // Oculta el botón de comenzar juego y muestra los controles del juego
-  document.getElementById("pre-game-controls").style.display = "none";
-  document.getElementById("game-controls").style.display = "flex";
+  document.getElementById('pre-game-controls').style.display = 'none';
+  document.getElementById('game-controls').style.display = 'flex';
   // Oculta el mensaje de prueba cuando se inicia el juego
-  const testMsg = document.getElementById("test-stage-message");
-  testMsg.style.display = "none";
+  const testMsg = document.getElementById('test-stage-message');
+  testMsg.style.display = 'none';
 });
 
-document.getElementById("b-end-game").addEventListener("click", () => {
+document.getElementById('b-end-game').addEventListener('click', () => {
   window.gameManager.endGame();
   // Al terminar el juego, vuelve al estado inicial
-  document.getElementById("game-controls").style.display = "none";
-  document.getElementById("initial-controls").style.display = "flex";
+  document.getElementById('game-controls').style.display = 'none';
+  document.getElementById('initial-controls').style.display = 'flex';
   // Detiene la cámara
   camera.stop();
 });
 
 // Inicialización de los botones al cargar la página
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener('DOMContentLoaded', () => {
   // Asegura que solo el botón inicial esté visible
-  document.getElementById("initial-controls").style.display = "flex";
-  document.getElementById("pre-game-controls").style.display = "none";
-  document.getElementById("game-controls").style.display = "none";
+  document.getElementById('initial-controls').style.display = 'flex';
+  document.getElementById('pre-game-controls').style.display = 'none';
+  document.getElementById('game-controls').style.display = 'none';
 });
 
 function getAverageColor(ctx, x, y, w, h) {
   const imageData = ctx.getImageData(x, y, w, h).data;
-  let r = 0,
-    g = 0,
-    b = 0,
-    count = 0;
+  let r = 0, g = 0, b = 0, count = 0;
   for (let i = 0; i < imageData.length; i += 4) {
     r += imageData[i];
     g += imageData[i + 1];
@@ -106,29 +101,23 @@ function getAverageColor(ctx, x, y, w, h) {
 function colorDistance(c1, c2) {
   return Math.sqrt(
     Math.pow(c1[0] - c2[0], 2) +
-      Math.pow(c1[1] - c2[1], 2) +
-      Math.pow(c1[2] - c2[2], 2)
+    Math.pow(c1[1] - c2[1], 2) +
+    Math.pow(c1[2] - c2[2], 2)
   );
 }
 
 function findClosestPose(hand, poses) {
-  let minDist = Infinity,
-    closestPose = null;
+  let minDist = Infinity, closestPose = null;
   const hx = hand.keypoints[0].x;
   const hy = hand.keypoints[0].y;
-  poses.forEach((pose) => {
-    // Use left and right wrist keypoints
-    const leftWrist = pose.keypoints.find((kp) => kp.name === "left_wrist");
-    const rightWrist = pose.keypoints.find((kp) => kp.name === "right_wrist");
-    if (leftWrist) {
-      const dist = Math.hypot(hx - leftWrist.x, hy - leftWrist.y);
-      if (dist < minDist) {
-        minDist = dist;
-        closestPose = pose;
-      }
-    }
-    if (rightWrist) {
-      const dist = Math.hypot(hx - rightWrist.x, hy - rightWrist.y);
+  poses.forEach(pose => {
+    // Usa el centro del pecho (promedio de hombros)
+    const leftShoulder = pose.keypoints.find(kp => kp.name === 'left_shoulder');
+    const rightShoulder = pose.keypoints.find(kp => kp.name === 'right_shoulder');
+    if (leftShoulder && rightShoulder) {
+      const cx = (leftShoulder.x + rightShoulder.x) / 2;
+      const cy = (leftShoulder.y + rightShoulder.y) / 2;
+      const dist = Math.hypot(hx - cx, hy - cy);
       if (dist < minDist) {
         minDist = dist;
         closestPose = pose;
@@ -164,12 +153,8 @@ async function runInference(canvas, camera) {
       const pose = findClosestPose(hand, poses);
       let color = [0, 0, 0];
       if (pose) {
-        const leftShoulder = pose.keypoints.find(
-          (kp) => kp.name === "left_shoulder"
-        );
-        const rightShoulder = pose.keypoints.find(
-          (kp) => kp.name === "right_shoulder"
-        );
+        const leftShoulder = pose.keypoints.find(kp => kp.name === 'left_shoulder');
+        const rightShoulder = pose.keypoints.find(kp => kp.name === 'right_shoulder');
         if (leftShoulder && rightShoulder) {
           const cx = (leftShoulder.x + rightShoulder.x) / 2;
           const cy = (leftShoulder.y + rightShoulder.y) / 2;
@@ -181,8 +166,7 @@ async function runInference(canvas, camera) {
       // Asigna el jugador con el color más cercano
       // Se asume que los colores de los jugadores están bien definidos en PLAYER_SYMBOLS
       // y que no hay más de 2 jugadores (si cambiamos eso, recordar ajustar esto!!!!!!!).
-      let minDist = Infinity,
-        assignedPlayer = null;
+      let minDist = Infinity, assignedPlayer = null;
       PLAYER_SYMBOLS.forEach((player, idx) => {
         const dist = colorDistance(color, player.rgb);
         if (dist < minDist) {
@@ -193,22 +177,11 @@ async function runInference(canvas, camera) {
       // Solo asigna si el color es parecido
       handToPlayer[i] = minDist < COLOR_THRESHOLD ? assignedPlayer : null;
 
-      console.log(
-        "Color promedio:",
-        color,
-        "Distancia rojo:",
-        colorDistance(color, PLAYER_SYMBOLS[0].rgb),
-        "Distancia azul:",
-        colorDistance(color, PLAYER_SYMBOLS[1].rgb)
-      );
+      console.log('Color promedio:', color, 'Distancia rojo:', colorDistance(color, PLAYER_SYMBOLS[0].rgb), 'Distancia azul:', colorDistance(color, PLAYER_SYMBOLS[1].rgb));
     });
 
     // Actualiza y dibuja el juego sólo cuando no está mostrando resultados de etapa
-    if (
-      window.gameManager &&
-      !window.gameManager.gameEnded &&
-      !document.querySelector(".stage-results")
-    ) {
+    if (window.gameManager && !window.gameManager.gameEnded && !document.querySelector('.stage-results')) {
       window.gameManager.update(Date.now(), hands, handToPlayer);
       window.gameManager.draw();
     }

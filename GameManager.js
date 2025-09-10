@@ -778,7 +778,6 @@ export class GameManager {
             Clara y Santiago son amigos, ambos celíacos, lo que significa que deben tener especial cuidado con lo que comen en su día a día 👀.<br><br>
             En este juego te invitamos a ayudarlos: tendrás que seleccionar con atención los alimentos que aparecen en pantalla, algunos son sin TACC y otros contienen gluten.🚫🌾<br><br>
             🎯El objetivo es capturar la mayor cantidad de alimentos sanos sin TACC que aparezcan <br><br>
-            Agarra los alimentos... <b> ¡con las manos! </b> <br><br>
             <b>¡Animate a cuidarte como lo hacen Clara y Santiago todos los días🤩!</b>
           </div>
         </div>
@@ -798,7 +797,6 @@ export class GameManager {
     };
   }
 
-  // esto creo que no lo usamos al final, chequear
   getOptionPositions(ctx) {
     const positions = [];
 
